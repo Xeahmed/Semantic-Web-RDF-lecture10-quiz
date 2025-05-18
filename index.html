@@ -1,0 +1,792 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecture 10: Semantic Web and RDF Quiz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f4f4f9, #e0e0e0);
+            color: #333;
+            padding: 20px;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            flex: 1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        body.dark-mode .header {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .dark-mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .dark-mode-toggle:hover {
+            background-color: #0056b3;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            height: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: #28a745;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .question {
+            background-color: #ffffff;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in;
+            direction: ltr;
+        }
+
+        body.dark-mode .question {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .question h3 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .options label {
+            display: block;
+            padding: 12px;
+            margin: 8px 0;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        body.dark-mode .options label {
+            background-color: #3a3a3a;
+        }
+
+        .options label:hover {
+            background-color: #e0e0e0;
+            transform: scale(1.02);
+        }
+
+        body.dark-mode .options label:hover {
+            background-color: #4a4a4a;
+        }
+
+        .options input {
+            margin-right: 10px;
+        }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            direction: rtl;
+            text-align: right;
+            font-size: 1em;
+        }
+
+        .correct {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .wrong {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .submit-btn {
+            padding: 12px 25px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #218838;
+            transform: scale(1.1);
+            animation: bounce 0.3s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1.1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .next-btn {
+            padding: 12px 25px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            display: none;
+            transition: background-color 0.3s;
+        }
+
+        .next-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .score {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            display: none;
+        }
+
+        body.dark-mode .score {
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .score h2 {
+            margin-bottom: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: auto;
+            color: #666;
+        }
+
+        body.dark-mode footer {
+            color: #aaa;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .question {
+                padding: 15px;
+            }
+
+            .dark-mode-toggle {
+                top: 10px;
+                right: 10px;
+                padding: 8px 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.2em;
+            }
+
+            .question h3 {
+                font-size: 1em;
+            }
+
+            .options label {
+                padding: 10px;
+            }
+
+            .submit-btn, .next-btn {
+                padding: 10px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <div class="container">
+        <div class="header">
+            <h1>Lecture 10: Semantic Web and RDF Quiz</h1>
+            <p>This quiz page was created by Eng: XE Ahmed Refat – EELU Student Sohag branch</p>
+        </div>
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+        <div id="quiz">
+            <!-- Questions will be populated by JavaScript -->
+        </div>
+        <div class="score" id="score"></div>
+    </div>
+    <footer>
+        <p>© Eng: XE Ahmed Refat – EELU Sohag</p>
+    </footer>
+
+    <script>
+        // Helper function to escape HTML characters
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        const questions = [
+            {
+                question: "What is the primary goal of the Semantic Web?",
+                options: [
+                    "To create a web of data that is meaningful to both humans and machines",
+                    "To design HTML pages for human readers",
+                    "To store data in relational databases",
+                    "To encrypt web data for security"
+                ],
+                correct: 0,
+                difficulty: "Easy",
+                explanation: "الـ Semantic Web بيهدف إنه يخلّي الـ data مترابطة ومفهومة للـ machines والبشر، عشان يبقى فيه 'web of data'."
+            },
+            {
+                question: "What is the role of RDF in the Semantic Web?",
+                options: [
+                    "To style web pages",
+                    "To represent information about resources",
+                    "To query relational databases",
+                    "To create ontologies"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ RDF هو إطار عمل بيستخدم عشان يمثّل معلومات عن الـ resources على الـ web في صورة triples."
+            },
+            {
+                question: "What are the three components of an RDF triple?",
+                options: [
+                    "Class, Property, Instance",
+                    "Subject, Predicate, Object",
+                    "Node, Edge, Graph",
+                    "URI, Query, Value"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ RDF triple بيتكوّن من Subject (الـ resource)، Predicate (الـ property)، وObject (الـ value)."
+            },
+            {
+                question: "Which RDF format is JSON-based?",
+                options: [
+                    "N-Triples",
+                    "Turtle",
+                    "RDF/XML",
+                    "JSON-LD"
+                ],
+                correct: 3,
+                difficulty: "Medium",
+                explanation: "الـ JSON-LD هو صيغة RDF بتستخدم JSON، وده بيسهّل استخدامها في الـ web applications."
+            },
+            {
+                question: "What does the Predicate in an RDF triple represent?",
+                options: [
+                    "The resource being described",
+                    "The value of the property",
+                    "The property or attribute of the resource",
+                    "The URI of the graph"
+                ],
+                correct: 2,
+                difficulty: "Easy",
+                explanation: "الـ Predicate في الـ RDF triple بيمثّل الـ property أو الـ attribute بتاع الـ resource، زي 'hasName'."
+            },
+            {
+                question: "Which language is used to create expressive ontologies in the Semantic Web?",
+                options: [
+                    "SPARQL",
+                    "OWL",
+                    "RDFS",
+                    "HTML"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ OWL (Web Ontology Language) هو لغة قوية بتستخدم لإنشاء ontologies معقدة ومعبّرة."
+            },
+            {
+                question: "What is SPARQL primarily used for?",
+                options: [
+                    "Styling RDF data",
+                    "Querying and manipulating RDF data",
+                    "Creating web pages",
+                    "Defining class hierarchies"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ SPARQL هو لغة استعلام بتستخدم عشان تسترد وتتعامل مع الـ RDF data."
+            },
+            {
+                question: "Which RDF format uses prefixes to abbreviate URIs for readability?",
+                options: [
+                    "RDF/XML",
+                    "N-Triples",
+                    "Turtle",
+                    "JSON-LD"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ Turtle بيستخدم prefixes زي `@prefix` عشان يختصر الـ URIs ويخلّي الصيغة أسهل للقراءة."
+            },
+            {
+                question: "What does Linked Data aim to achieve?",
+                options: [
+                    "Encrypt web data",
+                    "Publish structured data for interlinking and querying",
+                    "Create visual graphs",
+                    "Store data in XML format"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ Linked Data بيهدف إنه ينشر الـ data المهيكلة بطريقة تخلّيها مترابطة وتقدر تتسأل عنها."
+            },
+            {
+                question: "In RDF, how is data visualized?",
+                options: [
+                    "As a table",
+                    "As a graph with nodes and edges",
+                    "As a JSON object",
+                    "As an XML tree"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ RDF data بتترسم في صورة graph، الـ nodes بتمثّل الـ subjects والـ objects، والـ edges بتمثّل الـ predicates."
+            },
+            {
+                question: "What does RDFS extend RDF to do?",
+                options: [
+                    "Query RDF data",
+                    "Define vocabularies and relationships",
+                    "Create visual graphs",
+                    "Encrypt data"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ RDFS (RDF Schema) بيوسّع الـ RDF عشان يحدّد vocabularies والعلاقات بين الـ resources."
+            },
+            {
+                question: "Which RDF format is XML-based?",
+                options: [
+                    "Turtle",
+                    "JSON-LD",
+                    "RDF/XML",
+                    "N-Triples"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ RDF/XML هو صيغة RDF بتستخدم XML عشان تمثّل الـ data."
+            },
+            {
+                question: "What is an ontology in the context of the Semantic Web?",
+                options: [
+                    "A database for storing RDF data",
+                    "A shared understanding of a domain for humans and machines",
+                    "A query language for RDF",
+                    "A web styling framework"
+                ],
+                correct: 1,
+                difficulty: "Easy",
+                explanation: "الـ Ontology بتوفّر فهم مشترك لـ domain معيّن للـ humans والـ machines، زي تعريف الكيانات وعلاقاتها."
+            },
+            {
+                question: "Which feature does OWL support in ontologies?",
+                options: [
+                    "Styling web pages",
+                    "Reasoning and inference",
+                    "Querying RDF graphs",
+                    "Encrypting data"
+                ],
+                correct: 2,
+                difficulty: "Hard",
+                explanation: "الـ OWL بيدعم ميزات زي الـ reasoning والـ inference، يعني استنباط معلومات جديدة من الـ data الموجودة."
+            },
+            {
+                question: "In an RDF graph, what do edges represent?",
+                options: [
+                    "Subjects",
+                    "Objects",
+                    "Predicates",
+                    "Nodes"
+                ],
+                correct: 2,
+                difficulty: "Easy",
+                explanation: "في الـ RDF graph، الـ edges (الأسهم) بتمثّل الـ predicates اللي بتربط بين الـ subjects والـ objects."
+            },
+            {
+                question: "What is the purpose of the `@context` in JSON-LD?",
+                options: [
+                    "To define the RDF graph structure",
+                    "To specify the vocabulary and prefixes",
+                    "To query RDF data",
+                    "To create class hierarchies"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ `@context` في الـ JSON-LD بيحدّد الـ vocabulary والـ prefixes اللي بتستخدم في الـ document."
+            },
+            {
+                question: "Which RDF format is a simple, line-based format?",
+                options: [
+                    "JSON-LD",
+                    "N-Triples",
+                    "RDF/XML",
+                    "Turtle"
+                ],
+                correct: 1,
+                difficulty: "Medium",
+                explanation: "الـ N-Triples هو صيغة بسيطة مبنية على السطور، كل سطر بيمثّل triple."
+            },
+            {
+                question: "What does the Semantic Web enable machines to do with data?",
+                options: [
+                    "Store data in XML format",
+                    "Understand, interpret, and reason about information",
+                    "Create HTML pages",
+                    "Encrypt web content"
+                ],
+                correct: 2,
+                difficulty: "Easy",
+                explanation: "الـ Semantic Web بيخلّي الـ machines تفهم، تترجم، وتستنتج معلومات من الـ data."
+            },
+            {
+                question: "What is an example of an RDF triple’s Object?",
+                options: [
+                    "The resource being described",
+                    "The property of the resource",
+                    "The value of the property (e.g., 'Ahmed')",
+                    "The URI of the graph"
+                ],
+                correct: 2,
+                difficulty: "Medium",
+                explanation: "الـ Object في الـ RDF triple هو الـ value بتاع الـ property، زي 'Ahmed' في 'hasName'."
+            },
+            {
+                question: "What does SPARQL allow querying across?",
+                options: [
+                    "HTML documents",
+                    "Multiple RDF datasets",
+                    "Relational databases",
+                    "JSON files"
+                ],
+                correct: 1,
+                difficulty: "Hard",
+                explanation: "الـ SPARQL بيسمح بـ querying عبر عدة RDF datasets، عشان تسترد معلومات من مصادر مختلفة."
+            },
+            {
+                question: "The Semantic Web is an extension of the traditional web.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ Semantic Web هو امتداد للـ traditional web، بيضيف معنى للـ data عشان الـ machines تفهمها."
+            },
+            {
+                question: "RDF data is always stored in JSON-LD format.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Easy",
+                explanation: "غلط، الـ RDF data ممكن تتخزّن في صيغ زي N-Triples، Turtle، RDF/XML، وJSON-LD."
+            },
+            {
+                question: "An RDF triple consists of Subject, Predicate, and Object.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ RDF triple بيتكوّن من Subject، Predicate، وObject."
+            },
+            {
+                question: "OWL supports reasoning and inference in ontologies.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ OWL بيدعم الـ reasoning والـ inference عشان يستنبط معلومات جديدة من الـ ontologies."
+            },
+            {
+                question: "SPARQL is used to create ontologies.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ SPARQL هو لغة استعلام للـ RDF data، مش لإنشاء ontologies."
+            },
+            {
+                question: "Turtle is a human-readable RDF format that uses prefixes.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ Turtle هو صيغة RDF سهلة القراءة وبيستخدم prefixes عشان يختصر الـ URIs."
+            },
+            {
+                question: "The traditional web is designed primarily for machines to process data.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Easy",
+                explanation: "غلط، الـ traditional web مصمّم أساسًا للـ humans، مش للـ machines."
+            },
+            {
+                question: "RDF graphs use nodes to represent subjects and objects.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، في الـ RDF graphs، الـ nodes بتمثّل الـ subjects والـ objects."
+            },
+            {
+                question: "JSON-LD cannot represent RDF data.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Easy",
+                explanation: "غلط، الـ JSON-LD هو صيغة بتستخدم عشان تمثّل الـ RDF data بطريقة JSON."
+            },
+            {
+                question: "RDFS extends RDF to define vocabularies and relationships.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ RDFS بيوسّع الـ RDF عشان يحدّد vocabularies والعلاقات بين الـ resources."
+            },
+            {
+                question: "RDF/XML is a human-readable RDF format.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ RDF/XML هو صيغة معقدة مبنية على XML، ومش سهلة القراءة زي Turtle."
+            },
+            {
+                question: "An ontology provides a shared understanding of a domain.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Easy",
+                explanation: "صح، الـ Ontology بتوفّر فهم مشترك لـ domain معيّن للـ humans والـ machines."
+            },
+            {
+                question: "Linked Data is a method for querying HTML pages.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ Linked Data هو طريقة لنشر الـ data المهيكلة عشان تترابط وتتسأل عنها، مش للـ HTML."
+            },
+            {
+                question: "The `@context` in JSON-LD defines the vocabulary and prefixes.",
+                type: "truefalse",
+                correct: true,
+                difficulty: "Medium",
+                explanation: "صح، الـ `@context` في الـ JSON-LD بيحدّد الـ vocabulary والـ prefixes."
+            },
+            {
+                question: "N-Triples is a complex RDF format based on XML.",
+                type: "truefalse",
+                correct: false,
+                difficulty: "Medium",
+                explanation: "غلط، الـ N-Triples هو صيغة بسيطة مبنية على السطور، مش XML."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+
+        function updateProgress() {
+            const progress = document.getElementById('progress');
+            const percentage = ((currentQuestion + 1) / questions.length) * 100;
+            progress.style.width = `${percentage}%`;
+        }
+
+        function loadQuestion() {
+            const quizDiv = document.getElementById('quiz');
+            const question = questions[currentQuestion];
+            let html = `
+                <div class="question">
+                    <h3>${currentQuestion + 1}. ${escapeHTML(question.question)} (${question.difficulty})</h3>
+                    <div class="options">
+            `;
+
+            if (question.type === 'truefalse') {
+                html += `
+                    <label><input type="radio" name="answer" value="true"> True</label>
+                    <label><input type="radio" name="answer" value="false"> False</label>
+                `;
+            } else {
+                question.options.forEach((option, index) => {
+                    html += `
+                        <label><input type="radio" name="answer" value="${index}"> ${escapeHTML(option)}</label>
+                    `;
+                });
+            }
+
+            html += `
+                    </div>
+                    <button class="submit-btn" onclick="submitAnswer()">Submit</button>
+                    <div class="feedback" id="feedback"></div>
+                    <button class="next-btn" onclick="nextQuestion()">Next</button>
+                </div>
+            `;
+
+            quizDiv.innerHTML = html;
+            updateProgress();
+        }
+
+        function submitAnswer() {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            const feedbackDiv = document.getElementById('feedback');
+            const question = questions[currentQuestion];
+
+            if (!selected) {
+                feedbackDiv.style.display = 'block';
+                feedbackDiv.className = 'feedback wrong';
+                feedbackDiv.innerHTML = 'من فضلك اختار إجابة!';
+                return;
+            }
+
+            const isCorrect = question.type === 'truefalse'
+                ? selected.value === question.correct.toString()
+                : parseInt(selected.value) === question.correct;
+
+            feedbackDiv.style.display = 'block';
+            feedbackDiv.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
+            feedbackDiv.innerHTML = isCorrect
+                ? `صح! ${question.explanation}`
+                : `غلط! ${question.explanation}`;
+
+            if (isCorrect) score++;
+
+            document.querySelector('.submit-btn').style.display = 'none';
+            document.querySelector('.next-btn').style.display = 'block';
+        }
+
+        function nextQuestion() {
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                loadQuestion();
+            } else {
+                showScore();
+            }
+        }
+
+        function showScore() {
+            const quizDiv = document.getElementById('quiz');
+            const scoreDiv = document.getElementById('score');
+            quizDiv.style.display = 'none';
+            scoreDiv.style.display = 'block';
+
+            let feedback = '';
+            const percentage = (score / questions.length) * 100;
+            if (percentage >= 80) {
+                feedback = 'ممتاز! عملت شغل عالي جداً، كمل كده!';
+            } else if (percentage >= 50) {
+                feedback = 'كويس! بس فيه مجال للتحسين، ركز أكتر.';
+            } else {
+                feedback = 'محتاج تذاكر أكتر! جرب تراجع الـ lecture تاني.';
+            }
+
+            scoreDiv.innerHTML = `
+                <h2>Your Final Score: ${score} out of ${questions.length}</h2>
+                <p>Percentage: ${percentage.toFixed(2)}%</p>
+                <p>${feedback}</p>
+            `;
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        // Load the first question
+        loadQuestion();
+    </script>
+</body>
+</html>
